@@ -12,6 +12,7 @@ uses multiple discovery methods, therefore it has a higher likelihood of finding
 - Multi-source favicon discovery with ranked candidate selection: HTML parsing for fetching
   favicon (SVG, PNG, WEBP, ICO supported); fallback to multiple external services including
   Google, DuckDuckGo.
+- Can download Android app icons (if AndroidApp1 or AndroidApp fields are present in the entry).
 - 128x128 is the default size. Smaller icons aren't upscaled, but larger icons are downscaled to 128x128.
 - Live extraction status and diagnostics windows.
 - Multiple selection support for batch extraction.
