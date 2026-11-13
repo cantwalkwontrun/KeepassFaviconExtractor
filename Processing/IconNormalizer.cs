@@ -4,8 +4,11 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Globalization;
 using System.Threading;
+using System.Xml;
 using SharpVectors.Converters;
+using SharpVectors.Dom;
 using SharpVectors.Renderers.Wpf;
 
 namespace FaviconExtractor
@@ -35,6 +38,9 @@ namespace FaviconExtractor
             }
 
             cancellationToken.ThrowIfCancellationRequested();
+
+            if (IsHtmlResponse(contentType, sourceBytes))
+                throw new InvalidOperationException("Downloaded content is an HTML page, not an icon. The site may require sign-in.");
 
             bool isSvgSource = IsSvg(contentType, sourceUrl, sourceBytes);
             bool isWebpSource = IsWebp(contentType, sourceUrl, sourceBytes);
@@ -90,15 +96,18 @@ namespace FaviconExtractor
 
         private static Bitmap DecodeSvgToBitmap(byte[] svgBytes, string sourceUrl, CancellationToken cancellationToken)
         {
+            XmlDocument document = SvgInputValidator.Read(svgBytes);
             using (Bitmap renderedBitmap = RunInStaThread(delegate
             {
                 WpfDrawingSettings settings = new WpfDrawingSettings();
                 settings.IncludeRuntime = false;
+                ConfigureSvgRenderSize(settings, document.DocumentElement);
+                settings.ExternalResourcesAccessMode = ExternalResourcesAccessModes.ThrowError;
 
-                using (MemoryStream input = new MemoryStream(svgBytes))
+                using (XmlReader input = new XmlNodeReader(document))
                 using (MemoryStream output = new MemoryStream())
+                using (StreamSvgConverter converter = new StreamSvgConverter(settings))
                 {
-                    StreamSvgConverter converter = new StreamSvgConverter(settings);
                     bool converted = converter.Convert(input, output);
                     if (!converted)
                     {
@@ -116,6 +125,29 @@ namespace FaviconExtractor
             {
                 return ValidateAndPrepareSvgBitmap(rawRenderCanvas, sourceUrl, cancellationToken);
             }
+        }
+
+        private static void ConfigureSvgRenderSize(WpfDrawingSettings settings, XmlElement root)
+        {
+            double width = 1, height = 1, declaredWidth, declaredHeight;
+            string[] viewBox = root.GetAttribute("viewBox").Split(new[] { ' ', ',', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            if (viewBox.Length == 4 &&
+                double.TryParse(viewBox[2], NumberStyles.Float, CultureInfo.InvariantCulture, out declaredWidth) &&
+                double.TryParse(viewBox[3], NumberStyles.Float, CultureInfo.InvariantCulture, out declaredHeight))
+            {
+                width = declaredWidth;
+                height = declaredHeight;
+            }
+            else if (double.TryParse(root.GetAttribute("width").Replace("px", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out declaredWidth) &&
+                double.TryParse(root.GetAttribute("height").Replace("px", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out declaredHeight))
+            {
+                width = declaredWidth;
+                height = declaredHeight;
+            }
+            if (width <= 0 || height <= 0 || double.IsInfinity(width) || double.IsInfinity(height) || double.IsNaN(width) || double.IsNaN(height)) width = height = 1;
+            double longest = Math.Max(width, height);
+            settings.PixelWidth = Math.Max(1, Math.Min(SvgRawRenderCanvasSize, (int)Math.Round(width / longest * SvgRawRenderCanvasSize)));
+            settings.PixelHeight = Math.Max(1, Math.Min(SvgRawRenderCanvasSize, (int)Math.Round(height / longest * SvgRawRenderCanvasSize)));
         }
 
         private static Bitmap ValidateAndPrepareSvgBitmap(Bitmap svgBitmap, string sourceUrl, CancellationToken cancellationToken)
@@ -544,20 +576,54 @@ namespace FaviconExtractor
             return new Rectangle(x, y, scaledWidth, scaledHeight);
         }
 
-        private static bool IsSvg(string contentType, string sourceUrl, byte[] sourceBytes)
+        internal static bool IsSvg(string contentType, string sourceUrl, byte[] sourceBytes)
         {
+            if (HasRasterSignature(sourceBytes) || IsHtmlResponse(contentType, sourceBytes)) return false;
             if (!string.IsNullOrWhiteSpace(contentType) && contentType.IndexOf("svg", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return true;
             }
 
-            if (!string.IsNullOrWhiteSpace(sourceUrl) && sourceUrl.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+            if (HasUrlExtension(sourceUrl, ".svg"))
             {
                 return true;
             }
 
             string prefix = GetTextPrefix(sourceBytes, 512);
             return prefix.IndexOf("<svg", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static bool HasUrlExtension(string url, string extension)
+        {
+            Uri uri;
+            return Uri.TryCreate(url, UriKind.Absolute, out uri) && uri.AbsolutePath.EndsWith(extension, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool HasRasterSignature(byte[] data)
+        {
+            if (data == null || data.Length < 4) return false;
+            return (data.Length >= 8 && data[0] == 137 && data[1] == 80 && data[2] == 78 && data[3] == 71 && data[4] == 13 && data[5] == 10 && data[6] == 26 && data[7] == 10)
+                || (data[0] == 255 && data[1] == 216)
+                || (data[0] == 'G' && data[1] == 'I' && data[2] == 'F' && data[3] == '8')
+                || (data[0] == 'B' && data[1] == 'M')
+                || (data[0] == 0 && data[1] == 0 && data[2] == 1 && data[3] == 0)
+                || WebpDecoder.LooksLikeWebp(data);
+        }
+
+        private static bool IsHtmlResponse(string contentType, byte[] data)
+        {
+            if (HasRasterSignature(data)) return false;
+            if (!string.IsNullOrWhiteSpace(contentType) && contentType.IndexOf("html", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            string prefix = GetTextPrefix(data, 2048).TrimStart('\uFEFF', ' ', '\t', '\r', '\n');
+            if (prefix.StartsWith("<?xml", StringComparison.OrdinalIgnoreCase))
+            {
+                int end = prefix.IndexOf("?>", StringComparison.Ordinal);
+                if (end >= 0) prefix = prefix.Substring(end + 2).TrimStart();
+            }
+            return prefix.StartsWith("<!doctype html", StringComparison.OrdinalIgnoreCase)
+                || prefix.StartsWith("<html", StringComparison.OrdinalIgnoreCase)
+                || prefix.StartsWith("<head", StringComparison.OrdinalIgnoreCase)
+                || prefix.StartsWith("<body", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsIco(string contentType, string sourceUrl, byte[] sourceBytes)
@@ -567,7 +633,7 @@ namespace FaviconExtractor
                 return true;
             }
 
-            if (!string.IsNullOrWhiteSpace(sourceUrl) && sourceUrl.EndsWith(".ico", StringComparison.OrdinalIgnoreCase))
+            if (HasUrlExtension(sourceUrl, ".ico"))
             {
                 return true;
             }
@@ -581,12 +647,13 @@ namespace FaviconExtractor
 
         private static bool IsWebp(string contentType, string sourceUrl, byte[] sourceBytes)
         {
+            if (HasRasterSignature(sourceBytes)) return WebpDecoder.LooksLikeWebp(sourceBytes);
             if (!string.IsNullOrWhiteSpace(contentType) && contentType.IndexOf("webp", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return true;
             }
 
-            if (!string.IsNullOrWhiteSpace(sourceUrl) && sourceUrl.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))
+            if (HasUrlExtension(sourceUrl, ".webp"))
             {
                 return true;
             }
@@ -602,53 +669,7 @@ namespace FaviconExtractor
 
         private static T RunInStaThread<T>(Func<T> action, CancellationToken cancellationToken, TimeSpan timeout)
         {
-            if (action == null)
-            {
-                throw new ArgumentNullException(nameof(action));
-            }
-
-            if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                return action();
-            }
-
-            T result = default(T);
-            Exception captured = null;
-
-            Thread thread = new Thread(new ThreadStart(delegate
-            {
-                try
-                {
-                    result = action();
-                }
-                catch (Exception ex)
-                {
-                    captured = ex;
-                }
-            }));
-
-            thread.IsBackground = true;
-            thread.SetApartmentState(ApartmentState.STA);
-            thread.Start();
-
-            Stopwatch sw = Stopwatch.StartNew();
-            while (!thread.Join(100))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (timeout > TimeSpan.Zero && sw.Elapsed >= timeout)
-                {
-                    throw new TimeoutException("STA-bound icon conversion timed out.");
-                }
-            }
-
-            if (captured != null)
-            {
-                throw new InvalidOperationException("Failed to execute STA-bound operation.", captured);
-            }
-
-            return result;
+            return StaRenderOperation.Run(action, cancellationToken, timeout);
         }
     }
 }

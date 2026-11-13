@@ -1503,6 +1503,7 @@ namespace FaviconExtractor
                 {
                     normalizedPng = IconNormalizer.NormalizeToPng(sourceBytes, typeAttribute, iconUrl, cancellationToken);
                 }
+                catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
                 {
                     throw new InvalidOperationException("Normalize failed: " + ex.Message, ex);
@@ -1771,26 +1772,9 @@ namespace FaviconExtractor
 
         private static bool IsLikelySvgCandidate(FaviconCandidate candidate, byte[] sourceBytes)
         {
-            if (candidate != null && !string.IsNullOrWhiteSpace(candidate.TypeAttribute) &&
-                candidate.TypeAttribute.IndexOf("svg", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                return true;
-            }
-
-            if (candidate != null && candidate.IconUri != null &&
-                candidate.IconUri.AbsoluteUri.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            if (sourceBytes == null || sourceBytes.Length == 0)
-            {
-                return false;
-            }
-
-            int count = Math.Min(sourceBytes.Length, 512);
-            string prefix = Encoding.UTF8.GetString(sourceBytes, 0, count);
-            return prefix.IndexOf("<svg", StringComparison.OrdinalIgnoreCase) >= 0;
+            return sourceBytes != null && sourceBytes.Length > 0 && IconNormalizer.IsSvg(
+                candidate == null ? null : candidate.TypeAttribute,
+                candidate == null || candidate.IconUri == null ? null : candidate.IconUri.AbsoluteUri, sourceBytes);
         }
 
         private static string FormatCandidate(FaviconCandidate candidate)

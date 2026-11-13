@@ -26,6 +26,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PathMap>$(MSBuildProjectDirectory)=./FaviconExtractor/</PathMap>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -109,6 +110,8 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Scoring\FaviconScorer.cs" />
     <Compile Include="Processing\IconNormalizer.cs" />
+    <Compile Include="Processing\SvgInputValidator.cs" />
+    <Compile Include="Processing\StaRenderOperation.cs" />
     <Compile Include="Processing\WebpDecoder.cs" />
     <Compile Include="Processing\FaviconImageDownloader.cs" />
     <Compile Include="Storage\KeePassIconAssigner.cs" />

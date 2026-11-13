@@ -13,6 +13,24 @@ namespace FaviconExtractor
     public class IconNormalizerTests
     {
         [TestMethod]
+        public void NormalizeToPng_WithHtmlLoginRedirectEndingInSvg_ReportsHtmlInsteadOfStaFailure()
+        {
+            byte[] html = Encoding.UTF8.GetBytes("<!doctype html><html><head><title>Sign in</title></head><body>Authentication required</body></html>");
+            InvalidOperationException error = Assert.ThrowsException<InvalidOperationException>(() =>
+                IconNormalizer.NormalizeToPng(html, "text/html", "https://example.test/login?next=%2ffavicon.svg"));
+            StringAssert.Contains(error.Message, "HTML");
+        }
+
+        [TestMethod]
+        public void NormalizeToPng_WithHtmlAtIcoUrl_ReportsNonImageContent()
+        {
+            byte[] html = Encoding.UTF8.GetBytes("<html><body>Sign in</body></html>");
+            InvalidOperationException error = Assert.ThrowsException<InvalidOperationException>(() =>
+                IconNormalizer.NormalizeToPng(html, "text/html", "https://example.test/favicon.ico"));
+            StringAssert.Contains(error.Message, "HTML");
+        }
+
+        [TestMethod]
         public void NormalizeToPng_WithSquarePng_PreservesOriginalDimensions()
         {
             byte[] pngBytes = CreatePngBytes(16, 16, Color.Red);
