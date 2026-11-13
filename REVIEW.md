@@ -2,9 +2,9 @@
 lang: en-GB
 ---
 
-# Local normalisation maintenance candidate
+# Normalisation maintenance review
 
-This candidate identifies itself as **1.1.5.1**, based on upstream 1.1.5.0 and the current upstream source at `26133d3`. It has not been forked, released or installed by this task.
+This maintenance fork identifies itself as **1.1.5.2**, based on upstream 1.1.5.0 and the upstream source at `26133d3`. The public release adds fork-specific update metadata to the reviewed normalisation changes.
 
 ## Findings and required fixes
 
@@ -31,4 +31,4 @@ The precise remote SVG/login response and full interactive KeePass workflow rema
 
 A permanently stuck renderer cannot safely be terminated in-process. It retains the single slot until KeePass exits, causing subsequent SVG attempts to time out rather than accumulating rendering workers. The checks reduce resource exposure but do not provide process isolation or a guarantee against every decoder vulnerability.
 
-The upstream packaging script automatically includes debug symbols and has not been used for this candidate. Local binaries, dependencies, logs, screenshots and installation data remain excluded from Git. The upstream update URL remains unchanged; this local candidate is not represented as an upstream release.
+The inherited packaging script automatically includes debug symbols and has not been used for this release. The reviewed release ZIP contains the rebuilt plugin, unchanged dependencies from the verified upstream release, licence notices and installation instructions. Debug symbols, logs, screenshots, configurations, databases and local installation data are excluded. The update URL and manifest refer to this fork; this is not an upstream release.

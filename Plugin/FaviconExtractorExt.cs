@@ -43,7 +43,7 @@ namespace FaviconExtractor
 
         public override string UpdateUrl
         {
-            get { return "https://raw.githubusercontent.com/zeynelozturk/KeepassFaviconExtractor/master/update.txt"; }
+            get { return "https://raw.githubusercontent.com/cantwalkwontrun/KeepassFaviconExtractor/master/update.txt"; }
         }
 
         public override ToolStripMenuItem GetMenuItem(PluginMenuType type)

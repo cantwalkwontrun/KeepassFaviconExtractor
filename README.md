@@ -1,4 +1,18 @@
+---
+lang: en-GB
+---
+
 # KeePass Favicon Extractor
+
+## Maintenance fork
+
+Version **1.1.5.2** includes the HTML-response, SVG resource and cancellation fixes described in [REVIEW.md](REVIEW.md). It also uses this fork's update feed. The first public fork release packages the plugin and its required dependencies for Windows with .NET Framework 4.8; verification used the official KeePass 2.61 reference and both x64 and x86 test hosts.
+
+Download the ZIP and `SHA256SUMS.txt` from [this fork's releases](https://github.com/cantwalkwontrun/KeepassFaviconExtractor/releases). Verify the ZIP checksum, close KeePass and retain one working plugin copy locally before replacing it. The package contains a `FaviconExtractor` folder for KeePass's `Plugins` directory. Keep only one copy of this plugin active; no PLGX is supplied.
+
+This is a maintenance fork of [the original project](https://github.com/zeynelozturk/KeepassFaviconExtractor). Release DLLs are unsigned. The real-application workflow and the exact website response behind the reported failure remain unverified; the tests use synthetic inputs.
+
+## Original features
 
 A KeePass 2 plugin that finds and downloads website favicons. The extension
 uses multiple discovery methods, therefore it has a higher likelihood of finding a favicon.
@@ -22,7 +36,7 @@ uses multiple discovery methods, therefore it has a higher likelihood of finding
 
 ## Installation
 
-- Download the latest version from [Releases](https://github.com/zeynelozturk/KeepassFaviconExtractor/releases)
+- Download the latest version and checksum from [the fork releases](https://github.com/cantwalkwontrun/KeepassFaviconExtractor/releases/latest).
 - Extract the .zip file into your KeePass `Plugins` directory. This will create a FaviconExtractor subdirectory
   containing the plugin and its dependencies.
 - Restart KeePass.
@@ -61,10 +75,6 @@ We do not modify or delete previously stored icons.
 
 ## Contact
 
-For questions, bug reports, or feature requests, please open an issue on GitHub,
-or contact the author at `zeynel@defkey.com`.
-
-If extension fails to download a favicon for a specific URL, please include the
-text you see in the icon download window.
+For maintenance-fork bug reports, use the fork's issue tracker with a synthetic reproduction. Do not post real passwords, databases, private URLs, account details, screenshots or unredacted logs. The original author maintains the upstream project separately.
 
 For build and development notes, see [DEVELOPMENT.md](DEVELOPMENT.md).
